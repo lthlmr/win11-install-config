@@ -190,7 +190,8 @@ const Home: FC = () => {
             optimizations.filter(opt => optIds.includes(opt.id))
         ),
         applications,
-        optimizations
+        optimizations,
+        loading
     );
 
     const categorizedApps = useMemo(() => {
