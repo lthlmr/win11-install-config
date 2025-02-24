@@ -24550,3 +24550,9 @@
 /src.zip
 /supabase/.temp/cli-latest
 /supabase/config.toml
+/node_modules/
+/node_modules/*
+/node_modules/**
+/.next/
+/.next/*
+/.next/**
