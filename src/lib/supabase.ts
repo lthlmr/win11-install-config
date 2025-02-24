@@ -9,7 +9,9 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseKey)
 
 // Types for the application
 export type Application = Database['public']['Tables']['applications']['Row'] & {
-    options?: ApplicationOption[]
+    options?: ApplicationOption[];
+    // Added version property for Java application
+    version?: string;
 }
 
 export type ApplicationOption = Database['public']['Tables']['application_options']['Row']

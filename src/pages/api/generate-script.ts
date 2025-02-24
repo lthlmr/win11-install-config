@@ -1,12 +1,14 @@
+// pages/api/generate-script.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { javaInstallScript } from '../../lib/scripts/java-install';
 
 type Data = {
   script: string;
 };
 
 export default function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Data>
+    req: NextApiRequest,
+    res: NextApiResponse<Data>
 ) {
   if (req.method === 'POST') {
     const { selectedApps, selectedOptimizations } = req.body;
@@ -16,11 +18,20 @@ export default function handler(
 
     // Install Applications
     selectedApps.forEach((app: any) => {
-      powerShellScript += `# Installing ${app.name}\n`;
-      powerShellScript += `$installerPath = "$env:TEMP\\${app.name}_installer.exe"\n`;
-      powerShellScript += `Invoke-WebRequest -Uri "${app.download_url}" -OutFile $installerPath\n`;
-      powerShellScript += `Start-Process $installerPath -ArgumentList "${app.install_args}" -Wait\n`;
-      powerShellScript += `Remove-Item $installerPath\n\n`;
+      // Special handling for Java installation
+      if (app.name === 'Java') {
+        powerShellScript += `# Installing ${app.name} version ${app.version}\n`;
+        // Get Java install script with selected version
+        const javaScript = javaInstallScript(app.version);
+        powerShellScript += javaScript + '\n\n';
+      } else {
+        // Standard application installation
+        powerShellScript += `# Installing ${app.name}\n`;
+        powerShellScript += `$installerPath = "$env:TEMP\\${app.name}_installer.exe"\n`;
+        powerShellScript += `Invoke-WebRequest -Uri "${app.download_url}" -OutFile $installerPath\n`;
+        powerShellScript += `Start-Process $installerPath -ArgumentList "${app.install_args}" -Wait\n`;
+        powerShellScript += `Remove-Item $installerPath\n\n`;
+      }
     });
 
     // Apply Optimizations
