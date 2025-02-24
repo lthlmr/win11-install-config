@@ -1,11 +1,13 @@
+// pages/index.tsx
 import { type FC, useState, useCallback, useMemo } from 'react';
 import Head from 'next/head';
 import { CheckIcon, QuestionMarkCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Dialog } from '@headlessui/react';
 import { useLoadData } from '../hooks/useLoadData';
-import { Application, Optimization } from '../lib/supabase';
+import { Application, Optimization, Tweak } from '../lib/supabase';
 import { useUrlState } from '../hooks/useUrlState';
 import AppCard from "../components/AppCard";
+import TweakCard from "../components/TweakCard";
 
 // Components Types
 interface SearchBarProps {
@@ -32,7 +34,13 @@ interface OptimizationCardProps {
     onSelect: (optimization: Optimization) => void;
 }
 
-type TabType = 'applications' | 'optimizations';
+interface TweakCardProps {
+    tweak: Tweak;
+    isSelected: boolean;
+    onSelect: (tweak: Tweak) => void;
+}
+
+type TabType = 'applications' | 'optimizations' | 'tweaks';
 
 // Reusable Components
 const SearchBar: FC<SearchBarProps> = ({ value, onChange }) => (
@@ -42,7 +50,7 @@ const SearchBar: FC<SearchBarProps> = ({ value, onChange }) => (
             type="text"
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Rechercher une application..."
+            placeholder="Rechercher..."
             className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200
                      placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
@@ -92,9 +100,10 @@ const OptimizationCard: FC<OptimizationCardProps> = ({ optimization, isSelected,
 
 // Main Component
 const Home: FC = () => {
-    const { applications, optimizations, loading, error } = useLoadData();
+    const { applications, optimizations, tweaks, loading, error } = useLoadData();
     const [selectedApps, setSelectedApps] = useState<Application[]>([]);
     const [selectedOptimizations, setSelectedOptimizations] = useState<Optimization[]>([]);
+    const [selectedTweaks, setSelectedTweaks] = useState<Tweak[]>([]);
     const [generatedScript, setGeneratedScript] = useState<string>('');
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
     const [selectedAppForDescription, setSelectedAppForDescription] = useState<Application | null>(null);
@@ -121,6 +130,14 @@ const Home: FC = () => {
         }));
     }, [applications]);
 
+    const categorizedTweaks = useMemo(() => {
+        const categories = Array.from(new Set(tweaks.map(tweak => tweak.category)));
+        return categories.map(category => ({
+            category,
+            tweaks: tweaks.filter(tweak => tweak.category === category)
+        }));
+    }, [tweaks]);
+
     const filteredApps = useMemo(() => {
         const searchLower = searchTerm.toLowerCase();
         return categorizedApps.map(({ category, apps }) => ({
@@ -131,6 +148,18 @@ const Home: FC = () => {
             )
         })).filter(({ apps }) => apps.length > 0);
     }, [categorizedApps, searchTerm]);
+
+    const filteredTweaks = useMemo(() => {
+        const searchLower = searchTerm.toLowerCase();
+        return categorizedTweaks.map(({ category, tweaks }) => ({
+            category,
+            tweaks: tweaks.filter(tweak =>
+                tweak.name.toLowerCase().includes(searchLower) ||
+                tweak.description.toLowerCase().includes(searchLower) ||
+                tweak.long_description.toLowerCase().includes(searchLower)
+            )
+        })).filter(({ tweaks }) => tweaks.length > 0);
+    }, [categorizedTweaks, searchTerm]);
 
     const toggleAppSelection = useCallback((app: Application): void => {
         setSelectedApps(prevApps => {
@@ -161,6 +190,16 @@ const Home: FC = () => {
         });
     }, []);
 
+    const toggleTweakSelection = useCallback((tweak: Tweak): void => {
+        setSelectedTweaks(prevTweaks => {
+            const isAlreadySelected = prevTweaks.some(t => t.id === tweak.id);
+            if (isAlreadySelected) {
+                return prevTweaks.filter(t => t.id !== tweak.id);
+            }
+            return [...prevTweaks, tweak];
+        });
+    }, []);
+
     const generatePowerShellScript = useCallback(async (): Promise<void> => {
         try {
             const response = await fetch('/api/generate-script', {
@@ -170,7 +209,8 @@ const Home: FC = () => {
                 },
                 body: JSON.stringify({
                     selectedApps,
-                    selectedOptimizations
+                    selectedOptimizations,
+                    selectedTweaks
                 }),
             });
 
@@ -183,7 +223,7 @@ const Home: FC = () => {
         } catch (error) {
             console.error('Error generating script:', error);
         }
-    }, [selectedApps, selectedOptimizations]);
+    }, [selectedApps, selectedOptimizations, selectedTweaks]);
 
     const copyToClipboard = useCallback(async (): Promise<void> => {
         try {
@@ -248,6 +288,12 @@ const Home: FC = () => {
                         >
                             Optimisations Windows
                         </TabButton>
+                        <TabButton
+                            active={activeTab === 'tweaks'}
+                            onClick={() => setActiveTab('tweaks')}
+                        >
+                            Tweaks
+                        </TabButton>
                     </div>
 
                     {activeTab === 'applications' && (
@@ -290,11 +336,52 @@ const Home: FC = () => {
                         </div>
                     )}
 
-                    {(selectedApps.length > 0 || selectedOptimizations.length > 0) && (
+                    {activeTab === 'tweaks' && (
+                        <>
+                            <SearchBar value={searchTerm} onChange={setSearchTerm} />
+                            {filteredTweaks.length > 0 ? (
+                                <div className="space-y-8">
+                                    {filteredTweaks.map(({ category, tweaks }) => (
+                                        <div key={category} className="space-y-4">
+                                            <h2 className="text-xl font-semibold text-gray-200 mb-4">{category}</h2>
+                                            <div className="space-y-4">
+                                                {tweaks.map((tweak) => (
+                                                    <TweakCard
+                                                        key={tweak.id}
+                                                        tweak={tweak}
+                                                        isSelected={selectedTweaks.some((t) => t.id === tweak.id)}
+                                                        onSelect={toggleTweakSelection}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <p className="text-gray-400 text-lg">
+                                        {searchTerm
+                                            ? "Aucun tweak ne correspond à votre recherche."
+                                            : "Aucun tweak disponible pour le moment."}
+                                    </p>
+                                    {searchTerm && (
+                                        <button
+                                            onClick={() => setSearchTerm('')}
+                                            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                                        >
+                                            Effacer la recherche
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {(selectedApps.length > 0 || selectedOptimizations.length > 0 || selectedTweaks.length > 0) && (
                         <div className="mt-8 border-t border-gray-700 pt-8">
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-xl font-semibold text-gray-200">
-                                    Sélections ({selectedApps.length + selectedOptimizations.length})
+                                    Sélections ({selectedApps.length + selectedOptimizations.length + selectedTweaks.length})
                                 </h2>
                                 <button
                                     onClick={generatePowerShellScript}
@@ -361,6 +448,38 @@ const Home: FC = () => {
                                                 <span className="text-gray-200">{opt.name}</span>
                                                 <button
                                                     onClick={() => toggleOptimizationSelection(opt)}
+                                                    className="text-gray-400 hover:text-gray-200 transition-colors"
+                                                    aria-label="Retirer de la sélection"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedTweaks.length > 0 && (
+                                <div className="mt-6">
+                                    <h3 className="text-lg font-medium text-gray-300 mb-3">
+                                        Tweaks Sélectionnés
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {selectedTweaks.map((tweak) => (
+                                            <div
+                                                key={tweak.id}
+                                                className="flex items-center justify-between bg-gray-800 rounded-lg p-4 border border-gray-700"
+                                            >
+                                                <div>
+                                                    <span className="text-gray-200">{tweak.name}</span>
+                                                    <span className="ml-2 px-2 py-1 text-xs font-semibold rounded-md bg-gray-700 text-gray-300">
+                                                        {tweak.category}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={() => toggleTweakSelection(tweak)}
                                                     className="text-gray-400 hover:text-gray-200 transition-colors"
                                                     aria-label="Retirer de la sélection"
                                                 >
