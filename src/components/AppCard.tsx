@@ -58,13 +58,27 @@ const AppCard: FC<AppCardProps> = ({ app, selectedApps, onSelect, onDescriptionC
                                 )}
                             </span>
                             <button
-                                onClick={() => onSelect({
-                                    ...app,
-                                    download_url: option.download_url,
-                                    install_args: option.install_args,
-                                    // For Java applications, store the version information
-                                    ...(isJavaApp && { version: option.install_args })
-                                })}
+                                onClick={() => {
+                                    // For Java applications, we need to properly extract the version
+                                    if (isJavaApp) {
+                                        // Extract the version from the name (e.g., "Java 21.0.2 (LTS)" -> "21.0.2")
+                                        const versionMatch = option.name.match(/(\d+\.\d+\.\d+)/);
+                                        const version = versionMatch ? versionMatch[1] : option.install_args;
+
+                                        onSelect({
+                                            ...app,
+                                            download_url: option.download_url,
+                                            install_args: option.install_args,
+                                            version: version // Explicitly set version
+                                        });
+                                    } else {
+                                        onSelect({
+                                            ...app,
+                                            download_url: option.download_url,
+                                            install_args: option.install_args
+                                        });
+                                    }
+                                }}
                                 className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
                                     isOptionSelected(option.download_url)
                                         ? 'bg-blue-600 text-white'

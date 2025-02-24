@@ -1,28 +1,40 @@
 // pages/api/generate-script.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { javaInstallScript } from '../../lib/scripts/java-install';
+import { Application, Optimization } from '../../lib/supabase';
 
 type Data = {
   script: string;
 };
+
+interface ScriptRequestBody {
+  selectedApps: Application[];
+  selectedOptimizations: Optimization[];
+}
 
 export default function handler(
     req: NextApiRequest,
     res: NextApiResponse<Data>
 ) {
   if (req.method === 'POST') {
-    const { selectedApps, selectedOptimizations } = req.body;
+    const { selectedApps, selectedOptimizations } = req.body as ScriptRequestBody;
 
     // Basic PowerShell script generation logic
     let powerShellScript = '# PowerShell script to install applications and apply optimizations\n\n';
 
     // Install Applications
-    selectedApps.forEach((app: any) => {
+    selectedApps.forEach((app) => {
       // Special handling for Java installation
       if (app.name === 'Java') {
-        powerShellScript += `# Installing ${app.name} version ${app.version}\n`;
+        // Debug logging to help diagnose the issue
+        console.log('Processing Java app:', JSON.stringify(app, null, 2));
+
+        const javaVersion = app.version || '';
+
+        powerShellScript += `# Installing ${app.name} version ${javaVersion}\n`;
+
         // Get Java install script with selected version
-        const javaScript = javaInstallScript(app.version);
+        const javaScript = javaInstallScript(javaVersion);
         powerShellScript += javaScript + '\n\n';
       } else {
         // Standard application installation
@@ -37,7 +49,7 @@ export default function handler(
     // Apply Optimizations
     if (selectedOptimizations && selectedOptimizations.length > 0) {
       powerShellScript += '# Applying Windows Optimizations\n\n';
-      selectedOptimizations.forEach((optimization: any) => {
+      selectedOptimizations.forEach((optimization) => {
         powerShellScript += `# Applying optimization: ${optimization.name}\n`;
         powerShellScript += optimization.script + '\n\n';
       });
