@@ -1,10 +1,11 @@
 // hooks/useLoadData.ts
 import { useState, useEffect } from 'react';
-import {supabase, Application, ApplicationOption, Optimization} from '../lib/supabase';
+import {supabase, Application, ApplicationOption, Optimization, Tweak} from '../lib/supabase';
 
 export const useLoadData = () => {
     const [applications, setApplications] = useState<Application[]>([]);
     const [optimizations, setOptimizations] = useState<Optimization[]>([]);
+    const [tweaks, setTweaks] = useState<Tweak[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +33,13 @@ export const useLoadData = () => {
 
                 if (optsError) throw optsError;
 
+                // Load tweaks
+                const { data: twks, error: twksError } = await supabase
+                    .from('tweaks')
+                    .select('*');
+
+                if (twksError) throw twksError;
+
                 // Combine applications with their options
                 const appsWithOptions = apps.map(app => ({
                     ...app,
@@ -48,6 +56,7 @@ export const useLoadData = () => {
 
                 setApplications(appsWithOptions);
                 setOptimizations(opts);
+                setTweaks(twks || []);
                 setError(null);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'An error occurred while loading data');
@@ -60,5 +69,5 @@ export const useLoadData = () => {
         loadData();
     }, []);
 
-    return { applications, optimizations, loading, error };
+    return { applications, optimizations, tweaks, loading, error };
 };

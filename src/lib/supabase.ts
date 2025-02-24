@@ -17,3 +17,5 @@ export type Application = Database['public']['Tables']['applications']['Row'] & 
 export type ApplicationOption = Database['public']['Tables']['application_options']['Row']
 
 export type Optimization = Database['public']['Tables']['optimizations']['Row']
+
+export type Tweak = Database['public']['Tables']['tweaks']['Row']
